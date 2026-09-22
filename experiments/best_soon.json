@@ -1,0 +1,1 @@
+{"K": 80, "params": {"max_depth": 4, "n_estimators": 1200, "learning_rate": 0.08, "subsample": 0.8, "colsample_bytree": 0.9, "min_child_weight": 8, "reg_lambda": 3.0}}
