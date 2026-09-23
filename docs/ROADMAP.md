@@ -7,7 +7,7 @@
 
 ## 1. 일별 가격 확보 — ✅ 완료 (2026-09-23)
 
-> 2001-01-03 ~ 2026-09-22 전 거래일 수집 완료. 결과는 `METHOD.md` 10절 — **`d_last1_vs_p1` 피쳐 1개로 MASE 0.759 → 0.658**.
+> 2001-01-03 ~ 2026-09-22 전 거래일 수집 완료. 결과는 `METHOD.md` 10·11절 — **`d_last1_vs_p1` 추가, 검증·시험 분리 후 시험 2021~2025 MASE 0.659 / MAPE 16.1%**.
 > 앵커 교체는 효과 없음, 순 중간 재예측은 하지 않기로 결정. 아래는 당시 기록.
 
 ### (당시 계획)
@@ -34,6 +34,8 @@ DB 에는 2026-03-22 이후분만 있다. 이 백필이 그대로 쓰인다.
 
 - [ ] `KCSPmodel/batch/pipeline_redpepper.py` 신규 — 농넷 순별 수집(홍고추·풋고추·청피망) → 피쳐 → 예측 → upsert
 - [ ] 피쳐 `d_last1_vs_p1` — 직전 순 마지막 거래일 상 가격(DB `agri_price` 홍고추 일별) ÷ 직전 순 평균. 과거분은 `data/daily_홍고추.csv`
+- [ ] 모델은 `METHOD.md` 11.5 그대로 — 비율 타깃, 학습마다 상위 K=60, `best_split.json` `S 선택` 파라미터, 시드 12 평균. 배추 파이프라인(가격 직접·고정 피쳐·단일 시드)을 복사하지 말 것. 명절 더미는 안 쓴다
+- [ ] 프론트 `Detail.jsx` `ITEM_UNIT` 에 `홍고추: '10키로상자'` (없으면 kg 으로 표시됨)
 - [ ] 예측은 **순 시작 시점 1회**. 순 중간에 다시 예측해 덮어쓰지 않는다(METHOD 10.3)
 - [ ] `redpepper_predictions` 테이블 생성 (`target_date VARCHAR(16) PK, predicted_price DOUBLE, actual_price DOUBLE, error_pct DOUBLE, updated_at TIMESTAMP`)
 - [ ] `PredictionService` 에 품목 매핑 추가 (현재 cabbage/onion/head_cabbage/carrot 만)
