@@ -58,17 +58,18 @@ def main(src, dst):
            if sub[[c for c in GRADES if c in sub]].drop_duplicates().shape[0] > 1]
     print(f'[1] overlapping dates {int((g.size() > 1).sum())}, inconsistent {len(bad)}: {bad[:10]}')
 
-    # 2) 커버리지: 각 조회일 창의 가장 이른 날짜가 직전 조회일+1 이하인지
-    qs = [dt.date.fromisoformat(r['date']) for r in recs]
-    earliest = raw.groupby('query').date.min()
-    gaps = []
-    for prev, cur in zip(qs, qs[1:]):
-        lo = earliest.get(cur)
-        if lo is None or lo > prev + dt.timedelta(1):
-            gaps.append((prev, cur, lo))
-    print(f'[2] coverage gaps {len(gaps)}')
-    for p, c, lo in gaps[:40]:
-        print(f'    {p} → {c}  window starts {lo}')
+    # 2) 커버리지: 응답 창(가장 이른 행 ~ 조회일)의 합집합이 첫 거래일~마지막 조회일을 빈틈없이 덮는지.
+    #    휴장일 조회는 빈 응답이라 창이 없지만, 앞뒤 창이 그 구간을 덮으면 공백이 아니다.
+    covered = set()
+    for q, lo in raw.groupby('query').date.min().items():
+        covered |= {lo + dt.timedelta(n) for n in range((q - lo).days + 1)}
+    first, last = raw.date.min(), max(dt.date.fromisoformat(r['date']) for r in recs)
+    # 직접 조회해서 빈 응답이 온 날은 휴장 확인
+    closed = {dt.date.fromisoformat(r['date']) for r in recs if not rows_of(r)}
+    holes = [first + dt.timedelta(n) for n in range((last - first).days + 1)
+             if first + dt.timedelta(n) not in covered | closed]
+    print(f'[2] confirmed-closed queries {len(closed)}, uncovered days {len(holes)}: '
+          f'{[str(d) for d in holes[:20]]}')
 
     daily = g.first().drop(columns='query').reset_index()
     daily = daily[['date'] + [c for c in GRADES if c in daily]]
