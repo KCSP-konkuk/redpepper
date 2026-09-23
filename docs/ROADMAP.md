@@ -5,7 +5,12 @@
 > **진행 순서 결정(2026-09-22)**: **1번(일별 가격 수집)을 먼저** 하고, 2번(파이프라인 연결)은 그 다음에 한다.
 > 일별 데이터를 확보한 뒤 앵커를 최신 가격으로 바꿔 성능을 다시 재고, 그 구성으로 파이프라인을 만든다.
 
-## 1. 일별 가격 확보 — 남은 유일한 큰 카드 (성능 + 서비스 양쪽)
+## 1. 일별 가격 확보 — ✅ 완료 (2026-09-23)
+
+> 2001-01-03 ~ 2026-09-22 전 거래일 수집 완료. 결과는 `METHOD.md` 10절 — **`d_last1_vs_p1` 피쳐 1개로 MASE 0.759 → 0.658**.
+> 앵커 교체는 효과 없음, 순 중간 재예측은 하지 않기로 결정. 아래는 당시 기록.
+
+### (당시 계획)
 
 **문제**: 지금 앵커가 "직전에 완성된 순"의 평균가다. 하순 중반에 예측한다면 이미 관측된
 최대 10일치 최신 가격을 못 쓰고 버린다.
@@ -28,6 +33,8 @@ DB 에는 2026-03-22 이후분만 있다. 이 백필이 그대로 쓰인다.
 현재 이 저장소는 데이터·실험까지다. 서비스에 붙이려면 `aws-agriforecast` 쪽에서:
 
 - [ ] `KCSPmodel/batch/pipeline_redpepper.py` 신규 — 농넷 순별 수집(홍고추·풋고추·청피망) → 피쳐 → 예측 → upsert
+- [ ] 피쳐 `d_last1_vs_p1` — 직전 순 마지막 거래일 상 가격(DB `agri_price` 홍고추 일별) ÷ 직전 순 평균. 과거분은 `data/daily_홍고추.csv`
+- [ ] 예측은 **순 시작 시점 1회**. 순 중간에 다시 예측해 덮어쓰지 않는다(METHOD 10.3)
 - [ ] `redpepper_predictions` 테이블 생성 (`target_date VARCHAR(16) PK, predicted_price DOUBLE, actual_price DOUBLE, error_pct DOUBLE, updated_at TIMESTAMP`)
 - [ ] `PredictionService` 에 품목 매핑 추가 (현재 cabbage/onion/head_cabbage/carrot 만)
 - [ ] systemd 타이머 추가 — 배추 20:30 / 양파 20:50 UTC 다음으로 **21:10 UTC(KST 06:10)**
