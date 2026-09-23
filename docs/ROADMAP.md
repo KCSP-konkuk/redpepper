@@ -28,26 +28,25 @@
 **부수 효과**: 서비스 화면의 일별/주별/월별 그래프에 홍고추가 필요한데,
 DB 에는 2026-03-22 이후분만 있다. 이 백필이 그대로 쓰인다.
 
-## 2. 파이프라인 연결 (아직 안 함)
+## 2. 파이프라인 연결 — ✅ 완료 (2026-09-23, aws-agriforecast #7 → 릴리스 #8, hotfix #13)
 
-현재 이 저장소는 데이터·실험까지다. 서비스에 붙이려면 `aws-agriforecast` 쪽에서:
+`aws-agriforecast/KCSPmodel/batch/pipeline_redpepper.py` 가 매일 **KST 06:10** 에 `redpepper_predictions` 를 갱신한다.
+첫 운영 예측: 202609하순 = 126,127원/10kg.
 
-- [ ] `KCSPmodel/batch/pipeline_redpepper.py` 신규 — 농넷 순별 수집(홍고추·풋고추·청피망) → 피쳐 → 예측 → upsert
-- [ ] 피쳐 `d_last1_vs_p1` — 직전 순 마지막 거래일 상 가격(DB `agri_price` 홍고추 일별) ÷ 직전 순 평균. 과거분은 `data/daily_홍고추.csv`
-- [ ] 모델은 `METHOD.md` 11.5 그대로 — 비율 타깃, 학습마다 상위 K=60, `best_split.json` `S 선택` 파라미터, 시드 12 평균. 배추 파이프라인(가격 직접·고정 피쳐·단일 시드)을 복사하지 말 것. 명절 더미는 안 쓴다
-- [ ] 프론트 `Detail.jsx` `ITEM_UNIT` 에 `홍고추: '10키로상자'` (없으면 kg 으로 표시됨)
-- [ ] 예측은 **순 시작 시점 1회**. 순 중간에 다시 예측해 덮어쓰지 않는다(METHOD 10.3)
-- [ ] `redpepper_predictions` 테이블 생성 (`target_date VARCHAR(16) PK, predicted_price DOUBLE, actual_price DOUBLE, error_pct DOUBLE, updated_at TIMESTAMP`)
-- [ ] `PredictionService` 에 품목 매핑 추가 (현재 cabbage/onion/head_cabbage/carrot 만)
-- [ ] systemd 타이머 추가 — 배추 20:30 / 양파 20:50 UTC 다음으로 **21:10 UTC(KST 06:10)**
-- [ ] `deploy-model-batch.yml` 에 홍고추 파이프라인 실행·검증 추가
-- [ ] 검색량 스케줄러에 **'고춧가루'** 키워드 추가 (모델이 쓰는 피쳐다)
-- [ ] 프론트 품목 목록·단위(10키로상자) 추가
+- [x] 파이프라인 — 농넷 순별(홍고추·풋고추·청피망)·일별 + 데이터랩 → 피쳐 → 예측 → upsert
+- [x] 피쳐 `d_last1_vs_p1` — **DB 가 아니라 농넷 일별을 직접** 받는다(DB 일별은 KST 11시 수집이라 06시엔 직전 순 마지막 날이 없다)
+- [x] 모델은 `METHOD.md` 11.5 그대로 — 비율 타깃, 상위 K=60, `best_split.json` `S 선택`, 시드 12. 같은 입력으로 실험과 대조해 2025 예측 최대 차이 0.017원
+- [x] 순 시작 시점 1회 예측(대상 순 가격은 보지 않는다)
+- [x] `redpepper_predictions` — 파이프라인이 없으면 만든다
+- [x] `PredictionService` 매핑, 프론트 단위 `10키로상자`, 품목 순서
+- [x] systemd 타이머 21:10 UTC, `deploy-model-batch.yml` 실행 검증
+- [x] 검색량 — **스케줄러 키워드 추가 대신 파이프라인이 데이터랩을 직접 부른다.** DB 검색량은 하루씩 요청해 정규화 기준이 달랐다(이 문제는 aws #9 에서 스케줄러를 2016~ 전체 재요청으로 고침)
 
-**주의할 점**
-- 서버 TZ 가 UTC 다. 순 판정은 반드시 KST 기준(`kst_today()`)으로.
-- `requirements.txt` 버전 고정: pandas 2.2.3, **xgboost 3.2.0**(3.4.1 이면 성능이 떨어진다).
-- 백엔드 필터가 `target_date >= 오늘` 이라 순이 바뀌면 이전 행이 화면에서 사라진다 → 순마다 갱신 필수.
+**구현하며 새로 알게 된 것**
+- 평년 = 최근 5년 같은 순 중 최고·최저를 뺀 3년 평균, 전년 = 36순 전 가격 — 농넷 값과 전 구간 일치. 다음 달 평년은 API 가 안 줘 이 정의로 계산한다
+- 받은 순별·일별은 서버 캐시(`data/cache_*.csv`)에 쌓고 빈 구간만 조회 → 평소 하루 4회 요청
+- 운영 첫날 빈 캐시 파일을 읽다 죽는 버그(hotfix #13) — 캐시를 쓰는 배치는 **두 번 연달아 실행**하는 테스트가 필요하다
+- 테스트는 `aws-agriforecast/KCSPmodel/batch/tests/` (PR 마다 CI)
 
 ## 3. 배추·양파에 장기 표본 적용 (검증 필요) — 후순위
 
